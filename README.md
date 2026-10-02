@@ -156,12 +156,6 @@ illustration rather than a full picture. The layer-by-layer view of six test gam
 
 ![Layer by layer](docs/lol_layers.png)
 
-### Does the hidden layer help?
-
-> **TODO:** run `python -m examples.compare_models` and paste its table and the paired-difference
-> lines here, with `comparison.png` (moved into `docs/`). Then replace this note with one or two
-> sentences on what the result says.
-
 ## Limitations
 
 - **Only a 10-minute snapshot.** The model sees no champions, player skill, items, or anything after
