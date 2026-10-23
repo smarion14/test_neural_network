@@ -49,7 +49,8 @@ else:
             wins = np.array([g["blueWin"] for g in usable], float).reshape(-1, 1)
             parts = train_val_test_split(np.arange(len(usable)).reshape(-1, 1), wins, seed=seed)
             prior = ChampionPrior().fit([usable[i] for i in parts[0][0].ravel()])  # training games only
-            return [build_features([usable[i] for i in idx.ravel()], minute, prior)[:2] for idx, _ in parts]
+            return [build_features([usable[i] for i in idx.ravel()], minute, prior, training=(j == 0))[:2]
+                    for j, (idx, _) in enumerate(parts)]          # parts[0] is the training set
 
         scores = evaluate(make_xy)
         show(scores, f"Minute {minute}, {len(usable)} games")

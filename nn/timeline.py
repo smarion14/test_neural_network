@@ -25,25 +25,35 @@ class ChampionPrior:
 
     Fit it on the training split and reuse it on validation and test, exactly like
     the Standardizer, or the test games' outcomes leak into their own features.
+    The training games leak too: their own result is inside the rates they are scored
+    with, so the feature looks far more predictive on them than it will on new games.
+    Score those with team_diff(game, own_game=True), which takes the game's own result out.
     """
 
     def __init__(self, strength=20):
         self.strength = strength
 
+    @staticmethod
+    def _won(game, p):
+        return game["blueWin"] if p < 5 else 1 - game["blueWin"]
+
     def fit(self, games):
-        wins, seen = {}, {}
+        self.wins, self.seen = {}, {}
         for g in games:
             for p, champ in enumerate(g["champs"]):
-                won = g["blueWin"] if p < 5 else 1 - g["blueWin"]
-                wins[champ] = wins.get(champ, 0) + won
-                seen[champ] = seen.get(champ, 0) + 1
-        k = self.strength
-        self.rate = {c: (wins[c] + 0.5 * k) / (seen[c] + k) for c in seen}
+                self.wins[champ] = self.wins.get(champ, 0) + self._won(g, p)
+                self.seen[champ] = self.seen.get(champ, 0) + 1
         return self
 
-    def team_diff(self, game):
-        r = [self.rate.get(c, 0.5) for c in game["champs"]]
-        return np.mean(r[:5]) - np.mean(r[5:])
+    def team_diff(self, game, own_game=False):
+        """Blue minus red mean champion rate. own_game=True: `game` was in fit(); leave it out."""
+        k, rates = self.strength, []
+        for p, champ in enumerate(game["champs"]):
+            wins, seen = self.wins.get(champ, 0), self.seen.get(champ, 0)
+            if own_game:
+                wins, seen = wins - self._won(game, p), seen - 1
+            rates.append((wins + 0.5 * k) / (seen + k) if seen + k else 0.5)
+        return np.mean(rates[:5]) - np.mean(rates[5:])
 
 
 def _by_role(values, roles):
@@ -53,9 +63,10 @@ def _by_role(values, roles):
     return values[[roles.index(r) for r in ROLES]]
 
 
-def build_features(games, minute, prior):
+def build_features(games, minute, prior, training=False):
     """Blue-minus-red features at `minute`. Every game must have more than `minute` frames.
 
+    training=True for the games `prior` was fitted on (see ChampionPrior).
     Returns X (games, features), y (games, 1) where 1 means blue won, and the names.
     """
     names = ["goldDiff", "goldDiffLast3", "expDiff", "expDiffLast3", "csDiff", "jungleCsDiff",
@@ -98,6 +109,6 @@ def build_features(games, minute, prior):
                      kills[0] - kills[1], recent_kills[0] - recent_kills[1],
                      assists[0] - assists[1], first,
                      *(count[k][0] - count[k][1] for k in ("tower", "dragon", "herald", "ward", "wardkill")),
-                     *role_gold, prior.team_diff(g), TIERS.index(g["tier"])])
+                     *role_gold, prior.team_diff(g, own_game=training), TIERS.index(g["tier"])])
     y = np.array([[g["blueWin"]] for g in games], float)
     return np.array(rows), y, names

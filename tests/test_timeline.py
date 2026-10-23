@@ -62,6 +62,26 @@ def test_features_ignore_the_future():
     assert X[0, names.index("killDiff")] == 0
 
 
+def test_champion_prior_leaves_the_games_own_result_out():
+    champs = list(range(10))
+    blue_won, red_won = {"champs": champs, "blueWin": 1}, {"champs": champs, "blueWin": 0}
+    prior = ChampionPrior(strength=1).fit([blue_won, red_won])
+    assert prior.team_diff(blue_won) == 0                  # both results counted: every champion looks 50/50
+    # without blue_won's own result the blue champions are 0.25 and the red ones 0.75
+    assert np.isclose(prior.team_diff(blue_won, own_game=True), -0.5)
+
+
+def test_only_training_games_get_the_leave_one_out_prior():
+    g = games()
+    prior = ChampionPrior().fit(g)
+    plain, _, names = build_features(g, 5, prior)
+    loo, _, _ = build_features(g, 5, prior, training=True)
+    c = names.index("champPriorDiff")
+    assert np.allclose(plain[:, c], [prior.team_diff(x) for x in g])
+    assert np.allclose(loo[:, c], [prior.team_diff(x, own_game=True) for x in g])
+    assert not np.allclose(plain[:, c], loo[:, c])
+
+
 def test_boosting_learns_an_interaction():
     rng = np.random.default_rng(0)
     X = rng.normal(size=(2000, 4))
