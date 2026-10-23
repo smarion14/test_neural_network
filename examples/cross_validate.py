@@ -36,10 +36,17 @@ for k, test in enumerate(folds):
         train_hit.setdefault(name, []).append(np.mean((on_train[name] >= 0.5) == (y[tr] >= 0.5)))
     print(f"fold {k + 1}/{FOLDS} done", flush=True)
 
+def calibration_error(p, bins=10):
+    """Average gap between the predicted win chance and the observed win rate, over 10 equal-width bins."""
+    p, t = p.ravel(), y.ravel()
+    b = np.minimum((p * bins).astype(int), bins - 1)
+    return sum(abs(p[b == i].mean() - t[b == i].mean()) * np.mean(b == i) for i in range(bins) if np.any(b == i))
+
+
 hit = {m: ((p >= 0.5) == (y >= 0.5)).ravel().astype(float) for m, p in oof.items()}
 print(f"\nCross-validated over {n:,} games, each tested once\n")
-print("| Model | Test accuracy | Log loss | Train minus test accuracy | Accuracy minus exact logistic regression (95% interval) |")
-print("|---|---|---|---|---|")
+print("| Model | Test accuracy | Log loss | Calibration error | Train minus test accuracy | Accuracy minus exact logistic regression (95% interval) |")
+print("|---|---|---|---|---|---|")
 for m, p in oof.items():
     acc = hit[m].mean()
     margin = 1.96 * np.sqrt(acc * (1 - acc) / n)
@@ -49,5 +56,5 @@ for m, p in oof.items():
         d = hit[m] - hit[BASE]
         lo, hi = np.percentile([d[rng.integers(0, n, n)].mean() for _ in range(BOOTSTRAPS)], [2.5, 97.5])
         versus = f"{d.mean() * 100:+.2f} [{lo * 100:+.2f}, {hi * 100:+.2f}] points"
-    print(f"| {m} | {acc:.1%} ± {margin * 100:.1f} | {binary_cross_entropy(y, p):.4f} "
+    print(f"| {m} | {acc:.1%} ± {margin * 100:.1f} | {binary_cross_entropy(y, p):.4f} | {calibration_error(p):.3f} "
           f"| {(np.mean(train_hit[m]) - acc) * 100:+.1f} points | {versus} |")
