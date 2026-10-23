@@ -5,6 +5,9 @@ import numpy as np
 # both teams' stats, but many columns are mirrors of each other (redKills equals
 # blueDeaths, redGoldDiff equals -blueGoldDiff), so differences remove the
 # redundancy and give the network fewer, more meaningful inputs.
+# Ward counts are left out on purpose: they are the only heavy-tailed columns (a team can
+# place 250 wards, the median is 16), and they carry no signal. Logistic regression gives
+# them a weight of about 0, and dropping them left its accuracy unchanged.
 LOL_FEATURES = [
     ("goldDiff",        lambda d: d["blueGoldDiff"]),
     ("expDiff",         lambda d: d["blueExperienceDiff"]),
@@ -17,8 +20,6 @@ LOL_FEATURES = [
     ("csDiff",          lambda d: d["blueTotalMinionsKilled"] - d["redTotalMinionsKilled"]),
     ("jungleCsDiff",    lambda d: d["blueTotalJungleMinionsKilled"] - d["redTotalJungleMinionsKilled"]),
     ("levelDiff",       lambda d: d["blueAvgLevel"] - d["redAvgLevel"]),
-    ("wardsPlacedDiff", lambda d: d["blueWardsPlaced"] - d["redWardsPlaced"]),
-    ("wardsKilledDiff", lambda d: d["blueWardsDestroyed"] - d["redWardsDestroyed"]),
 ]
 
 REQUIRED_COLUMNS = [
@@ -26,8 +27,7 @@ REQUIRED_COLUMNS = [
     "blueAssists", "redAssists", "blueFirstBlood", "blueTowersDestroyed",
     "redTowersDestroyed", "blueDragons", "redDragons", "blueHeralds", "redHeralds",
     "blueTotalMinionsKilled", "redTotalMinionsKilled", "blueTotalJungleMinionsKilled",
-    "redTotalJungleMinionsKilled", "blueAvgLevel", "redAvgLevel", "blueWardsPlaced",
-    "redWardsPlaced", "blueWardsDestroyed", "redWardsDestroyed",
+    "redTotalJungleMinionsKilled", "blueAvgLevel", "redAvgLevel",
 ]
 
 

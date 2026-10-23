@@ -1,4 +1,4 @@
-"""Does the hidden layer help?  (logistic regression vs the 13-16-8-1 network)
+"""Does the hidden layer help?  (logistic regression vs the 11-16-8-1 network)
 
 Trains each model on several different random train/validation/test splits of the
 same data and compares test scores. Using several splits matters: with ~1,500 test
@@ -34,7 +34,7 @@ def small_network(n_features):
 
 
 MODELS = {"Logistic regression\n(no hidden layer)": logistic_regression,
-          "Network\n13-16-8-1": small_network}
+          "Network\n11-16-8-1": small_network}
 
 X, y, names = load_lol(CSV_PATH)
 acc = {m: [] for m in MODELS}
