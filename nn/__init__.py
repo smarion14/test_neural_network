@@ -8,6 +8,7 @@ from .metrics import accuracy, confusion_matrix, majority_baseline
 from .data import load_lol, train_val_test_split, Standardizer
 from .persistence import save_model, load_model
 from .diagnostics import overfitting_report
+from .logistic import LogisticRegression
 from .boosting import GradientBoosting
 from .ensemble import Ensemble
 from .timeline import ChampionPrior, build_features, load_games, TIERS
