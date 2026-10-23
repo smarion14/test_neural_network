@@ -1,3 +1,4 @@
 numpy
 matplotlib
 requests   # only for collect/riot.py
+pytest     # only to run the tests with python -m pytest

@@ -6,7 +6,7 @@
 Resumable: games already in the output file are skipped, and every game is written the
 moment it is fetched, so Ctrl-C (or a key that expired mid-run) loses nothing.
 A development key allows 100 requests per 2 minutes, so this runs at about 0.4 games/s.
-Each game keeps only a compact per-minute summary (see nn/timeline.py), about 5 KB.
+Each game keeps only a compact per-minute summary (see nn/timeline.py), about 16 KB.
 """
 import argparse
 import json
