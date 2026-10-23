@@ -9,3 +9,4 @@ from .data import load_lol, train_val_test_split, Standardizer
 from .persistence import save_model, load_model
 from .diagnostics import overfitting_report
 from .boosting import GradientBoosting
+from .ensemble import Ensemble
