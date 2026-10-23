@@ -121,6 +121,31 @@ who got first blood). The target is whether blue won. Data is split 70% train / 
 15% test; features are standardized with **training-set statistics only**; the test set is used
 exactly once, at the end.
 
+## Collecting more data and combining models
+
+The Kaggle file is a fixed 10-minute snapshot, which caps how well any model can do. These parts
+build a bigger dataset from the Riot API and test better models on it.
+
+```
+$env:RIOT_API_KEY="RGAPI-..."           # free development key, developer.riotgames.com
+python -m collect.riot --per-tier 2500   # 8 tiers x 2500 games, resumable, ~15-20 h
+python -m examples.ensemble --games data/games.jsonl
+python -m examples.ensemble              # same models on the Kaggle CSV
+```
+
+| Part | Files |
+|---|---|
+| Collector: ranked solo-queue games from Iron to Master, match + per-minute timeline, ~5 KB per game | `collect/riot.py` |
+| Features at any minute: gold / XP momentum, lane-by-lane gold, carry gap, recent kills, tier, champion win-rate prior (fit on training games only) | `nn/timeline.py` |
+| Gradient-boosted trees from scratch (Newton boosting, histogram splits) | `nn/boosting.py` |
+| Ensemble: logistic regression + network + boosted trees, probabilities averaged | `nn/ensemble.py` |
+
+On the Kaggle CSV (13 features) the ensemble does **not** beat plain logistic regression
+(about 73% for every model): those features hold only so much signal. The gains have to come
+from the new features and from predicting at later minutes, which need the collected data.
+Games that end before a checkpoint are dropped from that checkpoint, so later minutes are scored
+on longer games only.
+
 ## Results
 
 Run on the real dataset (9,879 games: 6,917 train / 1,481 validation / 1,481 test):
