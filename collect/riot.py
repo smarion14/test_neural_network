@@ -18,7 +18,7 @@ from nn.timeline import TIERS
 
 PLATFORM_TO_REGION = {"na1": "americas", "br1": "americas", "la1": "americas", "la2": "americas",
                       "euw1": "europe", "eun1": "europe", "tr1": "europe", "ru": "europe",
-                      "kr": "asia", "jp1": "asia", "oc1": "sea", "sg2": "sea", "tw2": "sea", "vn2": "sea"}
+                      "kr": "asia", "jp1": "asia", "oc1": "sea", "sg2": "sea", "ph2": "sea", "th2": "sea", "tw2": "sea", "vn2": "sea"}
 MIN_SECONDS_BETWEEN_REQUESTS = 1.25     # 100 requests / 120 s with a little headroom
 APEX = {"MASTER"}                        # no divisions; fetched from a different endpoint
 DRAGON, HERALD = "DRAGON", "RIFTHERALD"
@@ -78,7 +78,12 @@ class Riot:
             if wait > 0:
                 time.sleep(wait)
             self.last = time.time()
-            r = self.http.get(url, params=params, headers={"X-Riot-Token": self.key}, timeout=30)
+            try:
+                r = self.http.get(url, params=params, headers={"X-Riot-Token": self.key}, timeout=30)
+            except self.http.exceptions.RequestException as e:   # network blip: wait and retry
+                print(f"network error, retrying: {type(e).__name__}")
+                time.sleep(2 ** attempt)
+                continue
             if r.status_code == 200:
                 return r.json()
             if r.status_code == 404:
@@ -87,7 +92,7 @@ class Riot:
                 raise SystemExit(f"Riot rejected the key ({r.status_code}). Dev keys expire every "
                                  "24 hours: make a new one at developer.riotgames.com and rerun.")
             time.sleep(int(r.headers.get("Retry-After", 2 ** attempt)))   # 429 or 5xx: back off
-        raise RuntimeError(f"giving up on {url} (last status {r.status_code})")
+        raise RuntimeError(f"giving up on {url}")
 
     def players(self, tier):
         """Endless stream of puuids from random pages of a tier's ladder."""
