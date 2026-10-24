@@ -1,3 +1,4 @@
+import gzip
 import json
 
 import numpy as np
@@ -19,12 +20,19 @@ MIRROR_SIGNS = np.array([1.0 if name == "tier" else -1.0 for name in FEATURES])
 
 
 def load_games(path):
-    """Read the games written by collect/riot.py (one JSON game per line)."""
+    """Read the games written by collect/riot.py: one JSON game per line, as text or gzipped (a path ending in .gz)."""
+    opener = gzip.open if str(path).endswith(".gz") else open
+    games = []
     try:
-        with open(path) as f:
-            return [json.loads(line) for line in f if line.strip()]
+        with opener(path, "rt") as f:
+            for line in f:
+                if line.strip():
+                    games.append(json.loads(line))
     except FileNotFoundError:
         raise FileNotFoundError(f"No games at '{path}'. Run: python -m collect.riot") from None
+    except EOFError:
+        pass                      # a run killed mid-write leaves a cut-off last gzip member: keep the games before it
+    return games
 
 
 class ChampionPrior:

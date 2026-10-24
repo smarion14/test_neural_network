@@ -1,7 +1,7 @@
 """Does combining models beat the single network?  And how early can we call a game?
 
     python -m examples.ensemble                              # Kaggle 10-minute CSV
-    python -m examples.ensemble --games data/games.jsonl     # your own Riot data, at 5/10/15/20 min
+    python -m examples.ensemble --games data/games.jsonl.gz  # your own Riot data, at 5/10/15/20 min
 
 Each model is scored on the same random splits, so the numbers are paired. Every model also trains
 on each game from the other team's point of view and averages the two answers (see nn/symmetry.py).
@@ -15,7 +15,7 @@ from nn import (Ensemble, accuracy, binary_cross_entropy, load_lol, load_games, 
                 ChampionPrior, train_val_test_split, MIRROR_SIGNS)
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--games", help="games.jsonl from collect.riot (default: the Kaggle CSV)")
+ap.add_argument("--games", help="games file from collect.riot, .jsonl or .jsonl.gz (default: the Kaggle CSV)")
 ap.add_argument("--splits", type=int, default=3)
 args = ap.parse_args()
 

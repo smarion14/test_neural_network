@@ -1,4 +1,4 @@
-"""Collect ranked solo-queue games from the Riot API into data/games.jsonl.
+"""Collect ranked solo-queue games from the Riot API into data/games.jsonl.gz.
 
     set RIOT_API_KEY=RGAPI-...        (PowerShell: $env:RIOT_API_KEY="RGAPI-...")
     python -m collect.riot --per-tier 2500
@@ -6,15 +6,18 @@
 Resumable: games already in the output file are skipped, and every game is written the
 moment it is fetched, so Ctrl-C (or a key that expired mid-run) loses nothing.
 A development key allows 100 requests per 2 minutes, so this runs at about 0.4 games/s.
-Each game keeps only a compact per-minute summary (see nn/timeline.py), about 16 KB.
+Each game keeps only a compact per-minute summary (see nn/timeline.py): about 16 KB as plain
+text, about 5 KB gzipped. An --out path ending in .gz is gzipped (one gzip member per game, so
+appending and crashes stay safe); any other path is plain text. nn.load_games reads both.
 """
 import argparse
+import gzip
 import json
 import os
 import random
 import time
 
-from nn.timeline import TIERS
+from nn.timeline import TIERS, load_games
 
 PLATFORM_TO_REGION = {"na1": "americas", "br1": "americas", "la1": "americas", "la2": "americas",
                       "euw1": "europe", "eun1": "europe", "tr1": "europe", "ru": "europe",
@@ -109,26 +112,32 @@ class Riot:
                     yield entry["puuid"]
 
 
+def write_game(out, game, packed):
+    """Append one game to `out` (opened "ab") as a line of JSON. packed: as its own gzip member, so the
+    game is complete on disk the moment it is written, and gzip files can be appended to member by member."""
+    line = (json.dumps(game, separators=(",", ":")) + "\n").encode()
+    out.write(gzip.compress(line) if packed else line)
+    out.flush()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--per-tier", type=int, default=2500)
     ap.add_argument("--platform", default=os.environ.get("RIOT_PLATFORM", "na1"))
-    ap.add_argument("--out", default="data/games.jsonl")
+    ap.add_argument("--out", default="data/games.jsonl.gz", help="a path ending in .gz is gzipped")
     args = ap.parse_args()
     key = os.environ.get("RIOT_API_KEY") or raise_missing_key()
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     seen, per_tier = set(), {t: 0 for t in TIERS}
     if os.path.exists(args.out):
-        with open(args.out) as f:
-            for line in f:
-                g = json.loads(line)
-                seen.add(g["id"])
-                per_tier[g["tier"]] += 1
+        for g in load_games(args.out):
+            seen.add(g["id"])
+            per_tier[g["tier"]] += 1
     print("already collected:", {t: n for t, n in per_tier.items() if n})
 
     riot = Riot(key, args.platform)
-    with open(args.out, "a") as out:
+    with open(args.out, "ab") as out:
         for tier in TIERS:
             for puuid in riot.players(tier):
                 if per_tier[tier] >= args.per_tier:
@@ -143,8 +152,7 @@ def main():
                     timeline = match and riot.get(f"{riot.region}/lol/match/v5/matches/{match_id}/timeline")
                     game = match and timeline and compact(match, timeline, tier)
                     if game:
-                        out.write(json.dumps(game, separators=(",", ":")) + "\n")
-                        out.flush()
+                        write_game(out, game, packed=args.out.endswith(".gz"))
                         per_tier[tier] += 1
                         if per_tier[tier] % 50 == 0:
                             print(f"{tier}: {per_tier[tier]}/{args.per_tier}")

@@ -5,14 +5,14 @@ Pooling the rows of every minute gives a model many more rows to learn from (the
 are split by game, so the rows of one game never land in both the training and the test side.
 The pooled models train on both teams' views of each game (nn/symmetry.py).
 
-Run from the project root:   python -m examples.anytime        (needs data/games.jsonl from collect.riot)
+Run from the project root:   python -m examples.anytime        (needs data/games.jsonl.gz from collect.riot)
 """
 import numpy as np
 
 from nn import (Anytime, ChampionPrior, GradientBoosting, LogisticRegression, MIRROR_SIGNS, Standardizer,
                 accuracy, binary_cross_entropy, build_rows, load_games)
 
-GAMES_PATH = "data/games.jsonl"
+GAMES_PATH = "data/games.jsonl.gz"
 FOLDS, BOOTSTRAPS = 5, 2000
 MINUTES = range(5, 31)                           # the minutes the pooled models train on
 CHECKPOINTS = (5, 10, 15, 20, 25)                # the minutes every model is scored at
