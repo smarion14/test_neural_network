@@ -23,8 +23,8 @@ well as the network, the boosted trees and their ensemble** on these 11 features
 | Blue/red mirror: train on every game from both teams' points of view, average the two answers | `nn/symmetry.py` |
 | Save / load a trained model (weights + scaler) | `nn/persistence.py` |
 | Visualizations | `nn/visualize.py` |
-| Examples | `examples/xor.py`, `examples/lol_winner.py`, `examples/predict_game.py`, `examples/compare_models.py`, `examples/cross_validate.py`, `examples/learning_curve.py`, `examples/anytime.py` |
-| Tests (45) | `tests/` |
+| Examples | `examples/xor.py`, `examples/lol_winner.py`, `examples/predict_game.py`, `examples/cross_validate.py`, `examples/learning_curve.py`, `examples/anytime.py` |
+| Tests (48) | `tests/` |
 
 Features: L2 regularization, He / Xavier initialization, overflow-safe sigmoid.
 
@@ -107,10 +107,9 @@ Always run from the project root.
 ```
 python -m examples.xor                  # classic sanity check: learn XOR, with visualizations
 python -m tests.test_gradients          # also: test_training, test_persistence, test_diagnostics, test_timeline,
-                                        #       test_logistic, test_data, test_symmetry, test_metrics, test_anytime
+                                        #       test_logistic, test_data, test_symmetry, test_metrics, test_anytime, test_collect
 python -m examples.lol_winner           # train on the real data, evaluate, save the model
 python -m examples.predict_game goldDiff=2000 expDiff=1000 killDiff=3
-python -m examples.compare_models       # logistic regression vs the network, over 5 splits
 python -m examples.cross_validate       # every model, 10-fold: one score per model (about 5 minutes)
 python -m examples.learning_curve       # does more data help? (about 5 minutes, saves docs/learning_curve.png)
 ```
@@ -124,14 +123,13 @@ figures, set `$env:MPLBACKEND="Agg"` first in PowerShell (`export MPLBACKEND=Agg
 
 | Command | Takes | You should see |
 |---|---|---|
-| `python -m pytest -q` | 3 s | `45 passed` |
+| `python -m pytest -q` | 3 s | `48 passed` |
 | `python -m examples.xor` | 10 s | the four XOR predictions near 0, 1, 1, 0 |
 | `python -m examples.lol_winner` | 10 s | test accuracy 71.4% (one split, ±2.3), the "How far to trust a call" table, `Saved model -> models/lol_model.npz` |
 | `python -m examples.predict_game goldDiff=2000 expDiff=1000 killDiff=3` | 1 s | a blue win chance of about 75%; swap the signs and red gets the same 75% |
-| `python -m examples.compare_models` | 1 min | logistic regression 72.8%, network 72.2% (5 splits) |
 | `python -m examples.cross_validate` | 5 min | the table under Results; exact logistic regression 73.4% ± 0.9 |
 | `python -m examples.learning_curve` | 5 min | the table under "Does more data help?" |
-| `python -m examples.anytime` | 3 min | the all-minutes tables (needs `data/games.jsonl`) |
+| `python -m examples.anytime` | 3 min | the all-minutes tables (needs `data/games.jsonl.gz`) |
 
 Runs are seeded, so the numbers repeat exactly on the same machine. NumPy versions can shift the last
 digit of a log loss. If `±` shows up as `?` in the console, run `$env:PYTHONIOENCODING="utf-8"` first.
@@ -167,19 +165,25 @@ build a bigger dataset from the Riot API and test better models on it.
 
 ```
 $env:RIOT_API_KEY="RGAPI-..."           # free development key, developer.riotgames.com
-python -m collect.riot --per-tier 2500   # 8 tiers x 2500 games, resumable, ~15-20 h, ~320 MB
-python -m examples.ensemble --games data/games.jsonl
+python -m collect.riot --per-tier 2500   # 8 tiers x 2500 games, resumable, ~15-20 h, ~100 MB gzipped
+python -m examples.ensemble --games data/games.jsonl.gz
 python -m examples.ensemble              # same models on the Kaggle CSV
-python -m examples.anytime               # one model for every minute vs one per minute (needs data/games.jsonl)
+python -m examples.anytime               # one model for every minute vs one per minute (needs data/games.jsonl.gz)
 ```
 
 | Part | Files |
 |---|---|
-| Collector: ranked solo-queue games from Iron to Master, match + per-minute timeline, ~16 KB per game | `collect/riot.py` |
+| Collector: ranked solo-queue games from Iron to Master, match + per-minute timeline, ~5 KB per game gzipped (16 KB as text) | `collect/riot.py`, `collect/pack.py` |
 | Features at any minute: gold / XP momentum, lane-by-lane gold, carry gap, recent kills, tier, champion win-rate prior (fit on training games only) | `nn/timeline.py` |
 | Gradient-boosted trees from scratch (Newton boosting, histogram splits) | `nn/boosting.py` |
 | Ensemble: logistic regression + network + boosted trees, probabilities averaged | `nn/ensemble.py` |
 | One model for every minute: logistic regression + boosted trees trained on rows from every minute of every game | `nn/anytime.py`, `build_rows` in `nn/timeline.py` |
+
+Games are stored gzipped. Each game is its own gzip member, so the collector can keep appending to
+the file and a Ctrl-C (or a killed run) loses at most the game being written; `load_games` reads
+`.jsonl` and `.jsonl.gz` alike. A plain file from an older run shrinks with
+`python -m collect.pack data/games.jsonl` (800 games: 13.2 MB to 3.7 MB, identical after
+decompressing), which writes `data/games.jsonl.gz` next to it and leaves the original for you to delete.
 
 On the Kaggle CSV (11 features) the ensemble does **not** beat plain logistic regression
 (73.1% against 73.4%, see Results): those features hold only so much signal. The gains have to come

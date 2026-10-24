@@ -189,31 +189,3 @@ def plot_learning_curve(sizes, scores, ylabel="Test accuracy", title="Does more 
     _clean(ax)
     fig.tight_layout()
     return fig
-
-
-def plot_model_comparison(scores, baseline=None, ylabel="Test accuracy",
-                          title="Same splits, different models"):
-    names = list(scores)
-    data = np.array([scores[k] for k in names], dtype=float)          # (models, splits)
-    colors, markers = [BLUE, ORANGE, "#55A868"], ["o", "s", "^"]
-
-    fig, ax = plt.subplots(figsize=(6.8, 4.6))
-    for s in range(data.shape[1]):
-        ax.plot(range(len(names)), data[:, s], color="lightgrey", linewidth=1, zorder=1)
-    for i, name in enumerate(names):
-        ax.scatter(np.full(data.shape[1], i), data[i], s=55, color=colors[i % 3],
-                   marker=markers[i % 3], edgecolor="black", linewidth=0.5, zorder=3)
-        ax.hlines(data[i].mean(), i - 0.22, i + 0.22, color="black", linewidth=2, zorder=4)
-        ax.text(i + 0.26, data[i].mean(), f"mean {data[i].mean():.3f}", va="center", fontsize=9)
-    if baseline is not None:
-        ax.axhline(np.mean(baseline), color="grey", linestyle="--", linewidth=1.2)
-        ax.text(len(names) - 0.55, np.mean(baseline), "always guess majority", color="grey",
-                fontsize=9, va="bottom", ha="right")
-    ax.set_xticks(range(len(names)))
-    ax.set_xticklabels(names)
-    ax.set_xlim(-0.5, len(names) - 0.2)
-    ax.set_ylabel(ylabel)
-    ax.set_title(title, fontweight="bold")
-    _clean(ax)
-    fig.tight_layout()
-    return fig
