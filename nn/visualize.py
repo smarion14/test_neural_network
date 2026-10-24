@@ -166,6 +166,31 @@ def plot_probability_slice(network, scaler, X_raw, y, i, j, feature_names,
     return fig
 
 
+def plot_learning_curve(sizes, scores, ylabel="Test accuracy", title="Does more data help?"):
+    """scores: {model name: array (splits, len(sizes))}. Each line is the mean over the splits."""
+    colors, markers = [BLUE, ORANGE, "#55A868"], ["o", "s", "^"]
+    fig, ax = plt.subplots(figsize=(7.2, 4.6))
+    spreads = []
+    for i, (name, runs) in enumerate(scores.items()):
+        runs = np.asarray(runs, dtype=float)
+        spreads.append(runs.std(axis=0, ddof=1).mean())
+        ax.plot(sizes, runs.mean(axis=0), color=colors[i % 3], marker=markers[i % 3], linewidth=2,
+                markersize=6, label=name)
+    ax.annotate(f"mean of {runs.shape[0]} splits; a single split strays about ±{np.mean(spreads) * 100:.1f} points from it",
+                xy=(0.5, -0.23), xycoords="axes fraction", ha="center", fontsize=8, color="grey")
+    ax.set_xscale("log")
+    ax.minorticks_off()
+    ax.set_xticks(sizes)
+    ax.set_xticklabels([f"{s:,}" for s in sizes], fontsize=8)
+    ax.set_xlabel("Training games (log scale)")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title, fontweight="bold")
+    ax.legend(frameon=False, loc="lower right")
+    _clean(ax)
+    fig.tight_layout()
+    return fig
+
+
 def plot_model_comparison(scores, baseline=None, ylabel="Test accuracy",
                           title="Same splits, different models"):
     names = list(scores)
