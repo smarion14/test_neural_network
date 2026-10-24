@@ -12,4 +12,5 @@ from .logistic import LogisticRegression
 from .symmetry import mirror, augment, symmetric
 from .boosting import GradientBoosting
 from .ensemble import Ensemble
-from .timeline import ChampionPrior, build_features, load_games, MIRROR_SIGNS, TIERS
+from .timeline import ChampionPrior, build_features, build_rows, load_games, MIRROR_SIGNS, TIERS
+from .anytime import Anytime

@@ -2,7 +2,7 @@
 import numpy as np
 
 from collect.riot import compact
-from nn import GradientBoosting, ChampionPrior, MIRROR_SIGNS, build_features, accuracy
+from nn import GradientBoosting, ChampionPrior, MIRROR_SIGNS, build_features, build_rows, accuracy
 
 
 def fake_match(win_blue=True):
@@ -80,6 +80,16 @@ def test_only_training_games_get_the_leave_one_out_prior():
     assert np.allclose(plain[:, c], [prior.team_diff(x) for x in g])
     assert np.allclose(loo[:, c], [prior.team_diff(x, own_game=True) for x in g])
     assert not np.allclose(plain[:, c], loo[:, c])
+
+
+def test_build_rows_stacks_the_minutes_and_skips_games_that_have_ended():
+    g = games() + [compact(fake_match(), fake_timeline(minutes=6), "GOLD")]     # the last game ends after minute 5
+    prior = ChampionPrior().fit(g)
+    X, y, which, names = build_rows(g, [5, 6], prior)
+    assert names[-1] == "minute" and X.shape == (7 + 6, len(names))             # 7 games at minute 5, 6 at minute 6
+    assert X[:7, -1].tolist() == [5] * 7 and X[7:, -1].tolist() == [6] * 6
+    assert which.tolist() == list(range(7)) + list(range(6))
+    assert np.array_equal(X[:7, :-1], build_features(g, 5, prior)[0])
 
 
 def swap_teams(g):
