@@ -6,15 +6,18 @@
 
 The trained network is saved to models/lol_model.npz. Set RESUME = True to continue
 training that saved model instead of starting from fresh random weights.
+
+Every game is also trained on from the other team's point of view (see nn/symmetry.py), and a
+prediction is the average of the two views, so it cannot depend on which team is called blue.
 """
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 from nn import (Dense, ReLU, Sigmoid, binary_cross_entropy, binary_cross_entropy_prime,
-                predict, train, Adam, accuracy, confusion_matrix, majority_baseline,
+                predict, train, Adam, accuracy, confusion_matrix, confidence_table, majority_baseline,
                 load_lol, train_val_test_split, Standardizer, save_model, load_model,
-                overfitting_report)
+                overfitting_report, augment, symmetric)
 from nn.visualize import (plot_history, plot_confusion_matrix, plot_layer_flow,
                           plot_probability_slice)
 
@@ -28,6 +31,9 @@ np.random.seed(0)
 X, y, names = load_lol(CSV_PATH)
 (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = train_val_test_split(X, y, seed=0)
 print(f"{len(X)} games, {X.shape[1]} features -> train {len(x_tr)}, val {len(x_va)}, test {len(x_te)}")
+signs = -np.ones(X.shape[1])                               # every feature is blue minus red
+x_tr, y_tr = augment(x_tr, y_tr, signs)                    # each game again from red's side: twice the rows
+x_va, y_va = augment(x_va, y_va, signs)
 
 # ---- 2. model: fresh, or loaded from disk ----
 previous_val_loss = None
@@ -62,12 +68,16 @@ if previous_val_loss is not None and val_loss >= previous_val_loss:
     network, save = load_model(MODEL_PATH).network, False
 
 # ---- 4. evaluate ONCE on the untouched test set ----
-test_pred = predict(network, x_te_s)
+test_pred = symmetric(lambda A: predict(network, scaler.transform(A)), x_te, signs)
 test_acc = accuracy(y_te, test_pred)
 print(f"\nTest accuracy : {test_acc:.4f}")
 print(f"Always-guess-majority baseline: {majority_baseline(y_te):.4f}")
 cm = confusion_matrix(y_te, test_pred)
 print("Confusion matrix [[TN, FP], [FN, TP]]:\n", cm)
+confidence = confidence_table(y_te, test_pred)
+print("\nHow far to trust a call, by how sure the model is of its pick:")
+for sure, share, right in confidence:
+    print(f"  at least {sure:.0%} sure: {share:.0%} of games, right {right:.1%} of the time")
 
 # ---- 5. how much did it overfit? (skipped if a better saved model was kept) ----
 if save:
@@ -78,7 +88,8 @@ if save:
 if save:
     path = save_model(MODEL_PATH, network, scaler, names,
                       metadata={"test_accuracy": test_acc,
-                                "val_loss": float(binary_cross_entropy(y_va, predict(network, x_va_s)))})
+                                "val_loss": float(binary_cross_entropy(y_va, predict(network, x_va_s))),
+                                "mirror_signs": signs.tolist(), "confidence": confidence})
     print(f"\nSaved model -> {path}")
 
 # ---- 7. visualizations ----

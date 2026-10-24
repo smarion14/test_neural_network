@@ -4,11 +4,12 @@ from .activations import Activation, Tanh, Sigmoid, ReLU
 from .losses import mse, mse_prime, binary_cross_entropy, binary_cross_entropy_prime
 from .optimizers import Optimizer, SGD, Adam
 from .network import predict, trace, train
-from .metrics import accuracy, confusion_matrix, majority_baseline
+from .metrics import accuracy, confusion_matrix, confidence_table, majority_baseline
 from .data import load_lol, train_val_test_split, Standardizer
 from .persistence import save_model, load_model
 from .diagnostics import overfitting_report
 from .logistic import LogisticRegression
+from .symmetry import mirror, augment, symmetric
 from .boosting import GradientBoosting
 from .ensemble import Ensemble
-from .timeline import ChampionPrior, build_features, load_games, TIERS
+from .timeline import ChampionPrior, build_features, load_games, MIRROR_SIGNS, TIERS

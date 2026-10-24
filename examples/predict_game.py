@@ -5,12 +5,12 @@ First run  python -m examples.lol_winner  once to create models/lol_model.npz. T
     python -m examples.predict_game goldDiff=1500 expDiff=800 killDiff=3 firstBlood=1
 
 Every stat is BLUE minus RED (negative = red is ahead). firstBlood is 1 if blue got
-first blood, 0 if red did. Stats you leave out default to 0.
+first blood, -1 if red did. Stats you leave out default to 0.
 """
 import argparse
 import numpy as np
 
-from nn import load_model, predict
+from nn import load_model, predict, symmetric
 
 parser = argparse.ArgumentParser(description="Predict a League game from 10-minute stats.")
 parser.add_argument("stats", nargs="*", help="feature=value pairs, e.g. goldDiff=1500")
@@ -34,12 +34,19 @@ for item in args.stats:
         raise SystemExit(f"'{raw}' is not a number (in '{item}').")
 
 row = np.array([[values[n] for n in model.feature_names]])
-p_blue = float(predict(model.network, model.scaler.transform(row))[0, 0])
+blue_chance = lambda A: predict(model.network, model.scaler.transform(A))
+signs = model.metadata.get("mirror_signs")                  # trained on both teams' views: average the two
+p_blue = float((symmetric(blue_chance, row, np.array(signs)) if signs else blue_chance(row))[0, 0])
 
 print("Game stats (blue minus red):")
 for n in model.feature_names:
     print(f"  {n:<16}{values[n]:>9.1f}")
 favored, p = ("Blue", p_blue) if p_blue >= 0.5 else ("Red", 1 - p_blue)
 print(f"\nBlue win chance: {p_blue:.1%}   ->  {favored} favored ({p:.1%})")
+reached = [c for c in model.metadata.get("confidence", []) if p >= c[0]]
+if reached:
+    sure, share, right = reached[-1]
+    print(f"Held-out games the model was at least {sure:.0%} sure about ({share:.0%} of all games): "
+          f"right {right:.0%} of the time")
 if model.metadata:
     print(f"(model test accuracy on held-out games: {model.metadata.get('test_accuracy', float('nan')):.1%})")

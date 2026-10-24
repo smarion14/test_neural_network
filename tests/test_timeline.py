@@ -2,7 +2,7 @@
 import numpy as np
 
 from collect.riot import compact
-from nn import GradientBoosting, ChampionPrior, build_features, accuracy
+from nn import GradientBoosting, ChampionPrior, MIRROR_SIGNS, build_features, accuracy
 
 
 def fake_match(win_blue=True):
@@ -80,6 +80,27 @@ def test_only_training_games_get_the_leave_one_out_prior():
     assert np.allclose(plain[:, c], [prior.team_diff(x) for x in g])
     assert np.allclose(loo[:, c], [prior.team_diff(x, own_game=True) for x in g])
     assert not np.allclose(plain[:, c], loo[:, c])
+
+
+def swap_teams(g):
+    """The same game with blue and red exchanged."""
+    flip = lambda who: (who + 5) % 10                              # player index on the other team
+    events = [[kind, t, flip(who) if kind in ("kill", "ward", "wardkill") else 1 - who, *extra]
+              for kind, t, who, *extra in g["events"]]            # towers, dragons, heralds: who is a team
+    return {**g, "frames": [f[5:] + f[:5] for f in g["frames"]], "events": events,
+            "champs": g["champs"][5:] + g["champs"][:5], "roles": g["roles"][5:] + g["roles"][:5],
+            "blueWin": 1 - g["blueWin"]}
+
+
+def test_swapping_the_teams_flips_exactly_the_features_that_mirror_signs_says():
+    g = games()
+    prior = ChampionPrior().fit(g)
+    X, y, names = build_features(g, 5, prior)
+    X_swapped, y_swapped, _ = build_features([swap_teams(x) for x in g], 5, prior)
+    assert np.allclose(X_swapped, X * MIRROR_SIGNS)
+    assert np.array_equal(y_swapped, 1 - y)
+    assert np.count_nonzero(X[0, MIRROR_SIGNS < 0]) >= 10          # not vacuous: most of the features are nonzero here
+    assert [n for n, s in zip(names, MIRROR_SIGNS) if s > 0] == ["tier"]
 
 
 def test_boosting_learns_an_interaction():

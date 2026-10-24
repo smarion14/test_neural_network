@@ -45,7 +45,8 @@ def test_load_lol_builds_blue_minus_red_features():
     assert names == [n for n, _ in LOL_FEATURES] and X.shape == (2, len(names))
     first = dict(zip(names, X[0]))
     assert first["goldDiff"] == 500 and first["killDiff"] == 3 and first["firstBlood"] == 1
-    assert dict(zip(names, X[1]))["killDiff"] == -3
+    second = dict(zip(names, X[1]))
+    assert second["killDiff"] == -3 and second["firstBlood"] == -1           # red got first blood
     assert y.tolist() == [[1.0], [0.0]]
 
 

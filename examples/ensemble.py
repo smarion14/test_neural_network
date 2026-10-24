@@ -3,7 +3,8 @@
     python -m examples.ensemble                              # Kaggle 10-minute CSV
     python -m examples.ensemble --games data/games.jsonl     # your own Riot data, at 5/10/15/20 min
 
-Each model is scored on the same random splits, so the numbers are paired.
+Each model is scored on the same random splits, so the numbers are paired. Every model also trains
+on each game from the other team's point of view and averages the two answers (see nn/symmetry.py).
 """
 import argparse
 
@@ -11,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from nn import (Ensemble, accuracy, binary_cross_entropy, load_lol, load_games, build_features,
-                ChampionPrior, train_val_test_split)
+                ChampionPrior, train_val_test_split, MIRROR_SIGNS)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--games", help="games.jsonl from collect.riot (default: the Kaggle CSV)")
@@ -19,12 +20,12 @@ ap.add_argument("--splits", type=int, default=3)
 args = ap.parse_args()
 
 
-def evaluate(make_xy):
+def evaluate(make_xy, signs):
     """make_xy(split_seed) -> (train, val, test) as (X, y) pairs. Returns {model: [acc per split]}."""
     scores = {}
     for s in range(args.splits):
         (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = make_xy(s)
-        preds = Ensemble().fit(x_tr, y_tr, x_va, y_va, seed=s).predict_all(x_te)
+        preds = Ensemble(signs).fit(x_tr, y_tr, x_va, y_va, seed=s).predict_all(x_te)
         for name, p in preds.items():
             scores.setdefault(name, []).append((accuracy(y_te, p), binary_cross_entropy(y_te, p)))
     return {m: np.array(v) for m, v in scores.items()}
@@ -38,7 +39,7 @@ def show(scores, title):
 
 if not args.games:
     X, y, _ = load_lol("data/high_diamond_ranked_10min.csv")
-    show(evaluate(lambda s: train_val_test_split(X, y, seed=s)), f"Kaggle CSV, {len(X)} games")
+    show(evaluate(lambda s: train_val_test_split(X, y, seed=s), -np.ones(X.shape[1])), f"Kaggle CSV, {len(X)} games")
 else:
     games = load_games(args.games)
     minutes, curves = [5, 10, 15, 20], {}
@@ -52,7 +53,7 @@ else:
             return [build_features([usable[i] for i in idx.ravel()], minute, prior, training=(j == 0))[:2]
                     for j, (idx, _) in enumerate(parts)]          # parts[0] is the training set
 
-        scores = evaluate(make_xy)
+        scores = evaluate(make_xy, MIRROR_SIGNS)
         show(scores, f"Minute {minute}, {len(usable)} games")
         for m, v in scores.items():
             curves.setdefault(m, []).append(v[:, 0].mean())

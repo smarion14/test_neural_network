@@ -13,7 +13,7 @@ LOL_FEATURES = [
     ("expDiff",         lambda d: d["blueExperienceDiff"]),
     ("killDiff",        lambda d: d["blueKills"] - d["redKills"]),
     ("assistDiff",      lambda d: d["blueAssists"] - d["redAssists"]),
-    ("firstBlood",      lambda d: d["blueFirstBlood"]),
+    ("firstBlood",      lambda d: 2 * d["blueFirstBlood"] - 1),     # +1 blue, -1 red: flips like the rest if the teams swap
     ("towerDiff",       lambda d: d["blueTowersDestroyed"] - d["redTowersDestroyed"]),
     ("dragonDiff",      lambda d: d["blueDragons"] - d["redDragons"]),
     ("heraldDiff",      lambda d: d["blueHeralds"] - d["redHeralds"]),

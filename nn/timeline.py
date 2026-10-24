@@ -10,6 +10,13 @@ ROLES = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"]
 # number of assists), "dragon" / "herald" / "tower" (who = team that took it, 0 blue /
 # 1 red), "ward" / "wardkill" (who = player).
 
+FEATURES = ["goldDiff", "goldDiffLast3", "expDiff", "expDiffLast3", "csDiff", "jungleCsDiff",
+            "levelDiff", "topGoldGap", "killDiff", "killDiffLast3", "assistDiff", "firstBlood",
+            "towerDiff", "dragonDiff", "heraldDiff", "wardsPlacedDiff", "wardsKilledDiff",
+            *[f"{r.lower()}GoldDiff" for r in ROLES], "champPriorDiff", "tier"]
+# If blue and red swap (see nn/symmetry.py) every feature changes sign except the tier, which both share.
+MIRROR_SIGNS = np.array([1.0 if name == "tier" else -1.0 for name in FEATURES])
+
 
 def load_games(path):
     """Read the games written by collect/riot.py (one JSON game per line)."""
@@ -69,10 +76,6 @@ def build_features(games, minute, prior, training=False):
     training=True for the games `prior` was fitted on (see ChampionPrior).
     Returns X (games, features), y (games, 1) where 1 means blue won, and the names.
     """
-    names = ["goldDiff", "goldDiffLast3", "expDiff", "expDiffLast3", "csDiff", "jungleCsDiff",
-             "levelDiff", "topGoldGap", "killDiff", "killDiffLast3", "assistDiff", "firstBlood",
-             "towerDiff", "dragonDiff", "heraldDiff", "wardsPlacedDiff", "wardsKilledDiff",
-             *[f"{r.lower()}GoldDiff" for r in ROLES], "champPriorDiff", "tier"]
     rows = []
     for g in games:
         F = np.array(g["frames"][:minute + 1], float)             # (minute+1, 10, 5)
@@ -111,4 +114,4 @@ def build_features(games, minute, prior, training=False):
                      *(count[k][0] - count[k][1] for k in ("tower", "dragon", "herald", "ward", "wardkill")),
                      *role_gold, prior.team_diff(g, own_game=training), TIERS.index(g["tier"])])
     y = np.array([[g["blueWin"]] for g in games], float)
-    return np.array(rows), y, names
+    return np.array(rows), y, list(FEATURES)
